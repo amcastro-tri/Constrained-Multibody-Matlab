@@ -11,8 +11,8 @@ sim_time = 5;             % Total simulated time.
 
 % Time stepping parameters.
 dt = 0.01;         % Time step, in seconds. 
-the_v = 1.0;       % rpy method in translational velocity.
-the_w = 1.0;       % rpy method in angular velocity.
+the_v = 1.0;       % Theta method in translational velocity.
+the_w = 1.0;       % Theta method in angular velocity.
 c = 1e-10;         % Regularization.
 num_steps = round(sim_time/dt);   % Number of time steps.
 
@@ -30,12 +30,12 @@ I_Bcm_B = diag([Ixx, Iyy, Izz]);
 
 % Initial configuration (must satisfies constraint)
 x = [1.5; 0.5; -0.5] * L;
-rpy = [0; 0; 0];  % RPY
-[Phi, J] = constraint_function(x, rpy, params)
+theta = [0; 0; 0];  % RPY
+[Phi, J_full] = constraint_function(x, theta, params)
 
 % Project onto constraint manifold.
-[x, rpy] = project_pose_rpy(x, rpy, params);
-[Phi, J] = constraint_function(x, rpy, params)
+[x, theta] = project_pose_rpy(x, theta, params);
+[Phi, J_full] = constraint_function(x, theta, params)
 nk = length(Phi);
 
 % Initial velocities.
@@ -65,7 +65,7 @@ cube_patch = patch('Faces', cube_faces(), 'Vertices', zeros(8,3), ...
 % Simulation loop
 for k = 1:num_steps
     t = (k-1) * dt;
-    R = rpy2rotm(rpy);
+    R = rpy2rotm(theta);
     I_world = R * I_Bcm_B * R';  % world-frame inertia
 
     % External forces and torques
@@ -79,33 +79,32 @@ for k = 1:num_steps
     omega_star = omega + dt * (I_world \ (tau_ext - C_W));
 
     % Solve for Lagrange multipliers.
-    [Phi, J] = constraint_function(x, rpy, params);        
+    [Phi, J_full] = constraint_function(x, theta, params);        
     M = blkdiag(m * eye(3), I_world); % Mass matrix
-    Phi_star = Phi + dt * J * [v_star; omega_star];
-    MiJT = M \ J';
-    W = J * MiJT;
+    Phi_star = Phi + dt * J_full * [v_star; omega_star];
+    MiJT = M \ J_full';
+    W = J_full * MiJT;
     Wreg = W + c/dt * eye(nk);
     lambda = -Wreg \ Phi_star / dt;
-
-    % Forces and moments on the body.
-    forces = J' * lambda;
+    forces = J' * lambda;  
 
     % Incorporate Lagrange multipliers in the full velocity update.
     delta_v = MiJT * lambda;
     v_next = v_star + delta_v(1:3);
     omega_next = omega_star + delta_v(4:6);
 
-    % Integrate positions. We use the rpy method.
+    % Integrate
     x_next = x + dt * (the_v * v_next + (1-the_v) * v);
-    rpy_dot = kin_map(rpy) * (the_w * omega_next + (1-the_w) * omega);
-    rpy_next = rpy + dt * rpy_dot;
+    theta_dot = T_rpy(theta) * (the_w * omega_next + (1-the_w) * omega);
+    theta_next = theta + dt * theta_dot;
 
     % Project to constraint manifold
-    [x_next, rpy_next] = project_pose_rpy(x_next, rpy_next, params);
+    [x_next, theta_next] = project_pose_rpy(x_next, theta_next, params);
 
     % Update graphics
-    R_next = rpy2rotm(rpy_next);
+    R_next = rpy2rotm(theta_next);
     C_w = R_next * C_b + x_next;
+    %C_w = C_b + x;
     set(cube_patch, 'Vertices', C_w');
     drawnow;
     axis([-2 3 -2 2 -2 2]*radius)
@@ -113,7 +112,7 @@ for k = 1:num_steps
 
     % Update state
     x = x_next;
-    rpy = rpy_next;
+    theta = theta_next;
     v = v_next;
     omega = omega_next;
 
@@ -121,8 +120,8 @@ for k = 1:num_steps
     K(k) = 0.5 * omega' * I_world * omega + 0.5 * m * v'*v;
     V(k) = m * g * x(3);
     E(k) = K(k) + V(k);
-    U(:,k) = rpy;
-    F(:,k) = forces;
+    U(:,k) = theta;
+
 end
 
 

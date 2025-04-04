@@ -1,24 +1,29 @@
-function [Phi, J] = constraint_function(x, theta, params)
-    % Body-fixed constrained point
-    %c_b = 0.5 * [-1; -1; 1];
-    c_b = params.p_BC;
+function [Phi, J] = constraint_function(p_WB, theta, params)    
+    p_BC = params.p_BC;
     r = params.radius;
     r2 = r * r;
     
-    R = rpy2rotm(theta);
-    c_w = x + R * c_b;
+    R_WB = rpy2rotm(theta);
+    p_BC_W = R_WB * p_BC;
+    p_WC = p_WB + p_BC_W;
 
-    % Constraint: point lies on unit circle in XY
+    % Constraint: point lies on unit circle in XY, at Z = 0.
+    % This is two constraint equations.
     Phi = zeros(2, 1);
-    Phi(1) = c_w(1)^2 + c_w(2)^2 - r2;
-    Phi(2) = c_w(3);
+    Phi(1) = p_WC(1)^2 + p_WC(2)^2 - r2;
+    Phi(2) = p_WC(3);
 
-    % Derivative of constraint wrt c_w
-    dPhi_dc = [2*c_w(1), 2*c_w(2), 0;
+    % Derivative of constraint wrt p_WC
+    dPhi_dp = [2*p_WC(1), 2*p_WC(2), 0;
                       0,        0, 1];
-
-    % Derivatives wrt generalized velocities
+    
+    % Corner velocity Jacobian, i.e. the corner velocity in the world is:
+    %   v_WC = J_WC ⋅ v.
     Jx = eye(3);
-    Jr = -skew(R * c_b);
-    J = dPhi_dc * [Jx, Jr];  % 2x6 Jacobian
+    Jw = -skew(p_BC_W);
+    J_WC = [Jx, Jw];
+
+    % Geometric Jacobian.
+    % i.e dPhi/dt = J⋅v + ∂Φ/∂t, with v generalized velocities.
+    J = dPhi_dp * J_WC;  % 2x6 Jacobian
 end
