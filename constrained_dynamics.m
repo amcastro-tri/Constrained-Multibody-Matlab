@@ -62,6 +62,10 @@ plot3(radius*cos(th), radius*sin(th), zeros(size(th)), 'k--', 'LineWidth', 1.2);
 cube_patch = patch('Faces', cube_faces(), 'Vertices', zeros(8,3), ...
     'FaceColor', [0.2 0.6 1], 'FaceAlpha', 0.5);
 
+vid = VideoWriter('cube_animation.avi', 'Motion JPEG AVI');  % Create video object
+vid.FrameRate = 30;  % Adjust as needed
+open(vid);
+
 % Simulation loop
 for k = 1:num_steps
     t = (k-1) * dt;
@@ -109,7 +113,9 @@ for k = 1:num_steps
     set(cube_patch, 'Vertices', C_w');
     drawnow;
     axis([-2 3 -2 2 -2 2]*radius)
-    pause(dt/10);
+    
+    frame = getframe(gcf);  % Capture current figure
+    writeVideo(vid, frame);   % Write to file
 
     % Update state
     x = x_next;
@@ -123,6 +129,10 @@ for k = 1:num_steps
     E(k) = K(k) + V(k);
     U(:,k) = rpy;
     F(:,k) = forces;
+
+    pause(dt/10);
 end
+
+close(vid);  % Finalize the MP4 file
 
 
