@@ -1,9 +1,9 @@
-function [Phi, J] = constraint_function(p_WB, theta, params)    
+function [Phi, J] = constraint_function(p_WB, rpy, params)    
     p_BC = params.p_BC;
     r = params.radius;
     r2 = r * r;
     
-    R_WB = rpy2rotm(theta);
+    R_WB = rpy2rotm(rpy);
     p_BC_W = R_WB * p_BC;
     p_WC = p_WB + p_BC_W;
 

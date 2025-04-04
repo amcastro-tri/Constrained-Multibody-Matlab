@@ -11,8 +11,8 @@ sim_time = 5;             % Total simulated time.
 
 % Time stepping parameters.
 dt = 0.01;         % Time step, in seconds. 
-the_v = 1.0;       % rpy method in translational velocity.
-the_w = 1.0;       % rpy method in angular velocity.
+theta_v = 1.0;       % rpy method in translational velocity.
+theta_w = 1.0;       % rpy method in angular velocity.
 c = 1e-10;         % Regularization.
 num_steps = round(sim_time/dt);   % Number of time steps.
 
@@ -28,7 +28,7 @@ Iyy = Ixx; Izz = Ixx;
 % Inertia tensor, about CoM Bcm, expressed in body frame B.
 I_Bcm_B = diag([Ixx, Iyy, Izz]); 
 
-% Initial configuration (must satisfies constraint)
+% Initial configuration (must satisfy the constraints)
 x = [1.5; 0.5; -0.5] * L;
 rpy = [0; 0; 0];  % RPY
 [Phi, J] = constraint_function(x, rpy, params)
@@ -62,6 +62,7 @@ plot3(radius*cos(th), radius*sin(th), zeros(size(th)), 'k--', 'LineWidth', 1.2);
 cube_patch = patch('Faces', cube_faces(), 'Vertices', zeros(8,3), ...
     'FaceColor', [0.2 0.6 1], 'FaceAlpha', 0.5);
 
+% Video
 vid = VideoWriter('cube_animation.avi', 'Motion JPEG AVI');  % Create video object
 vid.FrameRate = 30;  % Adjust as needed
 open(vid);
@@ -99,9 +100,9 @@ for k = 1:num_steps
     v_next = v_star + delta_v(1:3);
     omega_next = omega_star + delta_v(4:6);
 
-    % Integrate positions. We use the rpy method.
-    x_next = x + dt * (the_v * v_next + (1-the_v) * v);
-    rpy_dot = kin_map(rpy) * (the_w * omega_next + (1-the_w) * omega);
+    % Integrate positions. We use the theta method.
+    x_next = x + dt * (theta_v * v_next + (1-theta_v) * v);
+    rpy_dot = kin_map(rpy) * (theta_w * omega_next + (1-theta_w) * omega);
     rpy_next = rpy + dt * rpy_dot;
 
     % Project to constraint manifold
